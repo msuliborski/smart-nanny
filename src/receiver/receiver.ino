@@ -12,7 +12,14 @@ bool pressed = false;
 #define btnSELECT 4
 #define btnNONE   5
 
+int alarms[15];
+int alarmsNum = 0;
+int alarmsCount = 0;
 int menuStatus = 0;
+int blink = 0;
+int blinkTime = 0;
+int h = 12;
+int m = 0;
 
 int read_LCD_buttons()
 {
@@ -28,11 +35,8 @@ int read_LCD_buttons()
 
 void setup()
 {
-  static unsigned char up_arrow[8] = {0x04, 0x0E, 0x15, 0x04, 0x04, 0x04, 0x04, 0x00};
-static unsigned char down_arrow[8] = {0x00, 0x04, 0x04, 0x04, 0x04, 0x15, 0x0E, 0x04};
-
-
  lcd.begin(16, 2);
+ Serial.begin(9600);
  lcd.setCursor(0,0);
  lcd.print("Welcome to");
  lcd.setCursor(0,1);
@@ -41,6 +45,7 @@ static unsigned char down_arrow[8] = {0x00, 0x04, 0x04, 0x04, 0x04, 0x15, 0x0E, 
  lcd.clear();
  lcd.setCursor(0,1);
  menuStatus = 0;
+ tone(7, 440, 300);
 }
  
 void loop()
@@ -52,28 +57,76 @@ void loop()
  {
      case btnRIGHT:
      {
-     pressed = true;
-     break;
+      if(!pressed)
+      {
+        if(menuStatus == 2)
+        {
+          if(blink == 1)
+          {
+            h++;
+            if(h == 24)
+              h = 0;
+          }
+          else if(blink == 2)
+          {
+            m++;
+            if(m == 60)
+              m = 0;
+          }
+        }
+        else if(menuStatus == 3)
+        {
+          alarmsCount++;
+          if(alarmsCount == alarmsNum)
+            alarmsCount = 0;
+        }
+        pressed = true;
+      }
+      break;
      }
      case btnLEFT:
      {
-     pressed = true;
-     break;
+      if(!pressed)
+      {
+        if(menuStatus == 2)
+        {
+          if(blink == 1)
+          {
+            h--;
+            if(h == -1)
+              h = 23;
+          }
+          else if(blink == 2)
+          {
+            m--;
+            if(m == -1)
+              m = 59;
+          }
+        }
+        else if(menuStatus == 3)
+        {
+          alarmsCount--;
+          if(alarmsCount < 0)
+            alarmsCount = alarmsNum - 1;
+        }
+        pressed = true;
+      }
+      break;
      }
      case btnUP:
      {
-      if(pressed == false)
+      if(!pressed)
       {
        pressed = true;
        menuStatus++;
        if(menuStatus == 5)
         menuStatus = 0;
       }
-     break;
+      break;
      }
      case btnDOWN:
      {
-      if(pressed == false)
+      if(!pressed)
       {
        pressed = true;
        menuStatus--;
@@ -81,12 +134,27 @@ void loop()
         menuStatus = 4;
       }
       
-     break;
+      break;
      }
      case btnSELECT:
      {
-     
-     break;
+      if(!pressed)
+      {
+        pressed = true;
+        if(menuStatus == 2)
+        {
+          blink++;
+          if(blink == 3)
+          {
+            blink = 0;
+            alarms[alarmsNum] = h*100 + m;
+            alarmsNum++;
+          }
+            
+        }
+      }
+      
+      break;
      }
      case btnNONE:
      {
@@ -123,17 +191,59 @@ void loop()
     }
     case 2:   //set alarm
     {
-      int hour = 12;
-      int minutes = 0;
+      
+      blinkTime++;
       lcd.setCursor(0,0);
       lcd.println("Set alarm:     ^");
       lcd.setCursor(0,1);
+
+      if(blink == 0)
+      {
+        if(h < 10)
+          lcd.print("0");
+        lcd.print(h);
+        lcd.print(":");
+        if(m < 10)
+          lcd.print("0");
+        lcd.print(m);
+      }
+      else if(blink == 1)
+      {
+        if(blinkTime<40)
+        {
+          if(h < 10)
+            lcd.print("0");
+          lcd.print(h);
+        }
+        else
+          lcd.print("  ");
+        if(blinkTime > 80)
+          blinkTime = 0;
+        lcd.print(":");
+        if(m < 10)
+          lcd.print("0");
+        lcd.print(m);
+      }
+      else if(blink == 2)
+      {
+        if(h < 10)
+          lcd.print("0");
+        lcd.print(h);
+        lcd.print(":");
+        
+        if(blinkTime<40)
+        {
+          if(m < 10)
+            lcd.print("0");
+          lcd.print(m);
+        }
+          
+        else
+          lcd.print("  ");
+        if(blinkTime > 80)
+          blinkTime = 0;
+      }
       
-      lcd.print(hour);
-      lcd.print(":");
-      if(minutes < 10)
-        lcd.print("0");
-      lcd.print(minutes);
       lcd.print("             ");
       lcd.setCursor(15,1);
       lcd.print("v");
@@ -142,10 +252,22 @@ void loop()
     case 3:   //show alarms
     {
       lcd.setCursor(0,0);
-      lcd.println("Show alarms:   ^");
+      lcd.println("Your alarms:   ^");
       lcd.setCursor(0,1);
-      
-      lcd.print("%                ");
+      if(alarmsNum == 0)
+        lcd.print("none");
+
+      else
+      {
+        if(alarms[alarmsCount]/100 < 10)
+          lcd.print("0");
+        lcd.print(alarms[alarmsCount]/100);
+        lcd.print(":");
+        if(alarms[alarmsCount]%100 < 10)
+          lcd.print("0");
+        lcd.print(alarms[alarmsCount]%100);
+      }
+      lcd.print("                  ");
       lcd.setCursor(15,1);
       lcd.print("v");
       break;
@@ -157,17 +279,31 @@ void loop()
       lcd.setCursor(0,1);
 
       time_t t = now();
+      
+      if(day(t) < 10)
+        lcd.print("0");
+      lcd.print(day(t));
+      lcd.print(".");
+
+      if(month(t) < 10)
+        lcd.print("0");
+      lcd.print(month(t));
+      lcd.print(".");
+
+      if(year(t)%10 < 10)
+        lcd.print("0");
+      lcd.print(year(t)%10);
+      lcd.print(" ");
+      
       if(hour(t) < 10)
         lcd.print("0");
       lcd.print(hour(t));
       lcd.print(":");
+      
       if(minute(t) < 10)
         lcd.print("0");
       lcd.print(minute(t));
-      lcd.print(":");
-      if(second(t) < 10)
-        lcd.print("0");
-      lcd.print(second(t));
+      
       lcd.print("       ");
       lcd.setCursor(15,1);
       lcd.print("v");
