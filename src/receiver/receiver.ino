@@ -1,5 +1,6 @@
 #include "LiquidCrystal.h"
 #include "Time.h"
+#include <EEPROM.h>
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 int lcd_key     = 0;
@@ -35,6 +36,9 @@ int read_LCD_buttons()
 
 void setup()
 {
+//for (int i = 0 ; i < EEPROM.length() ; i++) {
+//    EEPROM.write(i, 255);
+//  }
  lcd.begin(16, 2);
  Serial.begin(9600);
  lcd.setCursor(0,0);
@@ -46,6 +50,8 @@ void setup()
  lcd.setCursor(0,1);
  menuStatus = 0;
  tone(7, 440, 300);
+ while(EEPROM.read(alarmsNum) != 255)
+  alarmsNum++;
 }
  
 void loop()
@@ -76,7 +82,7 @@ void loop()
         }
         else if(menuStatus == 3)
         {
-          alarmsCount++;
+          alarmsCount += 2;
           if(alarmsCount == alarmsNum)
             alarmsCount = 0;
         }
@@ -105,9 +111,9 @@ void loop()
         }
         else if(menuStatus == 3)
         {
-          alarmsCount--;
+          alarmsCount -= 2;
           if(alarmsCount < 0)
-            alarmsCount = alarmsNum - 1;
+            alarmsCount = alarmsNum - 2;
         }
         pressed = true;
       }
@@ -147,8 +153,10 @@ void loop()
           if(blink == 3)
           {
             blink = 0;
-            alarms[alarmsNum] = h*100 + m;
-            alarmsNum++;
+            EEPROM.write(alarmsNum, h);
+            EEPROM.write(alarmsNum + 1, m);
+            //alarms[alarmsNum] = h*100 + m;
+            alarmsNum += 2;
           }
             
         }
@@ -259,13 +267,13 @@ void loop()
 
       else
       {
-        if(alarms[alarmsCount]/100 < 10)
+        if(EEPROM.read(alarmsCount) < 10)
           lcd.print("0");
-        lcd.print(alarms[alarmsCount]/100);
+        lcd.print(EEPROM.read(alarmsCount));
         lcd.print(":");
-        if(alarms[alarmsCount]%100 < 10)
+        if(EEPROM.read(alarmsCount + 1) < 10)
           lcd.print("0");
-        lcd.print(alarms[alarmsCount]%100);
+        lcd.print(EEPROM.read(alarmsCount + 1));
       }
       lcd.print("                  ");
       lcd.setCursor(15,1);
