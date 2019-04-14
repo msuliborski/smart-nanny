@@ -1,11 +1,20 @@
 #include "LiquidCrystal.h"
 #include "Time.h"
 #include <EEPROM.h>
+#include <RTClib.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+RF24 radio(3, 2);  // CE, CSN
+RTC_DS1307 rtc;
 
+const byte address[6] = "00001";
 int lcd_key     = 0;
 int adc_key_in  = 0;
 bool pressed = false;
+char frame[5] = {0};
 #define btnRIGHT  0
 #define btnUP     1
 #define btnDOWN   2
@@ -39,8 +48,28 @@ void setup()
 //for (int i = 0 ; i < EEPROM.length() ; i++) {
 //    EEPROM.write(i, 255);
 //  }
+
+if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  radio.begin();
+  radio.openReadingPipe(0, address);
+  radio.startListening();
+  //Serial.begin(9600);
+  //if (! rtc.isrunning()) {
+    //Serial.println("RTC is NOT running!");
+    // following line sets the RTC to the date & time this sketch was compiled
+    
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  //}
+ 
  lcd.begin(16, 2);
- Serial.begin(9600);
+ 
  lcd.setCursor(0,0);
  lcd.print("Welcome to");
  lcd.setCursor(0,1);
@@ -49,15 +78,24 @@ void setup()
  lcd.clear();
  lcd.setCursor(0,1);
  menuStatus = 0;
- tone(7, 440, 300);
+ 
  while(EEPROM.read(alarmsNum) != 255)
   alarmsNum++;
+
+  
 }
  
 void loop()
 {
+  
+  
  lcd_key = read_LCD_buttons();
- 
+ if (radio.available())
+  {
+    radio.read(&frame, sizeof(frame));
+    Serial.println(frame);
+    
+  }
  
  switch (lcd_key)
  {
@@ -171,14 +209,28 @@ void loop()
      }
   }
 
-  switch(menuStatus)
+  if(frame[4] - 48 == 1)    //crying handle
+  {
+    lcd.setCursor(0,0);
+    lcd.print("     ALERT!                ");
+    lcd.setCursor(0,1);
+    lcd.print("CHILD IS CRYING     ");
+    tone(1, 440, 100);
+    delay(100);
+  } 
+
+  else
+  {
+    switch(menuStatus)
   {
     case 0:   //temperature
     {
       lcd.setCursor(0,0);
       lcd.print("Temperature:   ^");
       lcd.setCursor(0,1);
-      int temp = 7;
+      int temp = (frame[0] - 48)*10 + (frame[1] - 48);
+      if(temp < 10)
+        lcd.print(" ");
       lcd.print(temp);
       lcd.print("\337C                ");
       lcd.setCursor(15,1);
@@ -190,7 +242,9 @@ void loop()
       lcd.setCursor(0,0);
       lcd.println("Humidity:      ^");
       lcd.setCursor(0,1);
-      int hum = 35;
+      int hum = (frame[2] - 48)*10 + (frame[3] - 48);
+      if(hum < 10)
+        lcd.print(" ");
       lcd.print(hum);
       lcd.print("%                ");
       lcd.setCursor(15,1);
@@ -282,40 +336,43 @@ void loop()
     }
     case 4:   //current time and date
     {
+      
       lcd.setCursor(0,0);
       lcd.println("Current time:  ^");
       lcd.setCursor(0,1);
 
-      time_t t = now();
+      DateTime t = rtc.now();
       
-      if(day(t) < 10)
+      if(t.day() < 10)
         lcd.print("0");
-      lcd.print(day(t));
+      lcd.print(t.day());
+      
       lcd.print(".");
 
-      if(month(t) < 10)
+      if(t.month() < 10)
         lcd.print("0");
-      lcd.print(month(t));
-      lcd.print(".");
-
-      if(year(t)%10 < 10)
-        lcd.print("0");
-      lcd.print(year(t)%10);
+      lcd.print(t.month());
       lcd.print(" ");
       
-      if(hour(t) < 10)
+      if(t.hour() < 10)
         lcd.print("0");
-      lcd.print(hour(t));
+      lcd.print(t.hour());
       lcd.print(":");
       
-      if(minute(t) < 10)
+      if(t.minute() < 10)
         lcd.print("0");
-      lcd.print(minute(t));
+      lcd.print(t.minute());
+      lcd.print(":");
+      
+      if(t.second() < 10)
+        lcd.print("0");
+      lcd.print(t.second());
       
       lcd.print("       ");
       lcd.setCursor(15,1);
       lcd.print("v");
       break;
     }
+  }
   }
  }
