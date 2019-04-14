@@ -1,6 +1,6 @@
 #include <dht.h>
 dht DHT;
-#define DHT11_PIN 2
+#define DHT11_PIN 7
 static double CORRECTING_COEFFICIENT = -5.0;
 void setup() {
 Serial.begin(9600);
