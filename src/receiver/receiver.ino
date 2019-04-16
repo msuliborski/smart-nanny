@@ -264,7 +264,7 @@ void loop()
     delay(100);
   }
 
-  else if(alarmAlert)
+  else if(alarmAlert)   //alarm alert handle
   {
     lcd.setCursor(0,0);
     lcd.print("     ALERT!                ");
