@@ -14,6 +14,7 @@ const byte address[6] = "00001";
 int lcd_key     = 0;
 int adc_key_in  = 0;
 bool pressed = false;
+bool canDeleteAlarm = false;
 char frame[5] = {0};
 #define btnRIGHT  0
 #define btnUP     1
@@ -28,7 +29,7 @@ int alarmsCount = 0;
 int menuStatus = 0;
 int blink = 0;
 int blinkTime = 0;
-int h = 12;
+int h = 0;
 int m = 0;
 
 int read_LCD_buttons()
@@ -95,6 +96,30 @@ void loop()
     radio.read(&frame, sizeof(frame));
     Serial.println(frame);
     
+  }
+
+  DateTime t = rtc.now();
+
+  for(int i=0; i <= alarmsNum; i += 2)
+  {
+    if (t.hour() == EEPROM.read(i) && t.minute() == EEPROM.read(i + 1) && t.second() > 0 && t.second() < 5)
+    {
+      lcd.setCursor(0,0);
+      lcd.print("     ALERT!                ");
+      lcd.setCursor(0,1);
+      lcd.print("   It's ");
+      if(t.hour() < 10)
+        lcd.print("0");
+      lcd.print(t.hour());
+      lcd.print(":");
+      if(t.minute() < 10)
+        lcd.print("0");
+      lcd.print(t.minute());
+      lcd.print("                 ");
+      tone(1, 440, 100);
+      delay(100);
+      
+    }
   }
  
  switch (lcd_key)
@@ -196,7 +221,10 @@ void loop()
             //alarms[alarmsNum] = h*100 + m;
             alarmsNum += 2;
           }
-            
+        }
+        if(menuStatus == 3)
+        {
+          canDeleteAlarm = true;
         }
       }
       
@@ -222,7 +250,7 @@ void loop()
   else
   {
     switch(menuStatus)
-  {
+    {
     case 0:   //temperature
     {
       lcd.setCursor(0,0);
@@ -332,6 +360,20 @@ void loop()
       lcd.print("                  ");
       lcd.setCursor(15,1);
       lcd.print("v");
+
+      if(canDeleteAlarm)
+      {
+        int tempH = EEPROM.read(alarmsNum - 1);
+        int tempM = EEPROM.read(alarmsNum);
+        EEPROM.write(alarmsNum - 1, 255);
+        EEPROM.write(alarmsNum, 255);
+
+        EEPROM.write(alarmsCount, tempH);
+        EEPROM.write(AlarmsCount + 1, tempM);
+
+        alarmsNum -= 2;
+        canDeleteAlarm = false;
+      }
       break;
     }
     case 4:   //current time and date
@@ -341,7 +383,7 @@ void loop()
       lcd.println("Current time:  ^");
       lcd.setCursor(0,1);
 
-      DateTime t = rtc.now();
+      
       
       if(t.day() < 10)
         lcd.print("0");
