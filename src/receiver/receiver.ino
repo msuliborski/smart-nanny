@@ -31,6 +31,11 @@ int blink = 0;
 int blinkTime = 0;
 int h = 0;
 int m = 0;
+int temp = 0;
+int hum = 0;
+bool lowTempAlert = false;
+bool highTempAlert = false;
+bool alarmAlert = false;
 
 int read_LCD_buttons()
 {
@@ -94,31 +99,22 @@ void loop()
  if (radio.available())
   {
     radio.read(&frame, sizeof(frame));
-    Serial.println(frame);
-    
+    temp = (frame[0] - 48)*10 + (frame[1] - 48);
+    hum = (frame[2] - 48)*10 + (frame[3] - 48);      
   }
+
+  if(temp >= 32)
+    highTempAlert = true;
+  else if(temp <= 15)
+    lowTempAlert = true;
 
   DateTime t = rtc.now();
 
   for(int i=0; i <= alarmsNum; i += 2)
   {
-    if (t.hour() == EEPROM.read(i) && t.minute() == EEPROM.read(i + 1) && t.second() > 0 && t.second() < 5)
+    if (t.hour() == EEPROM.read(i) && t.minute() == EEPROM.read(i + 1))
     {
-      lcd.setCursor(0,0);
-      lcd.print("     ALERT!                ");
-      lcd.setCursor(0,1);
-      lcd.print("   It's ");
-      if(t.hour() < 10)
-        lcd.print("0");
-      lcd.print(t.hour());
-      lcd.print(":");
-      if(t.minute() < 10)
-        lcd.print("0");
-      lcd.print(t.minute());
-      lcd.print("                 ");
-      tone(1, 440, 100);
-      delay(100);
-      
+      alarmAlert = true;
     }
   }
  
@@ -210,6 +206,14 @@ void loop()
       if(!pressed)
       {
         pressed = true;
+
+        if(lowTempAlert)
+          lowTempAlert = false;
+        else if(highTempAlert)
+          highTempAlert = false;
+        else if(alarmAlert)
+          alarmAlert = false;
+          
         if(menuStatus == 2)
         {
           blink++;
@@ -222,7 +226,7 @@ void loop()
             alarmsNum += 2;
           }
         }
-        if(menuStatus == 3)
+        else if(menuStatus == 3)
         {
           canDeleteAlarm = true;
         }
@@ -245,7 +249,39 @@ void loop()
     lcd.print("CHILD IS CRYING     ");
     tone(1, 440, 100);
     delay(100);
-  } 
+  }
+
+  else if(lowTempAlert || highTempAlert)   //temp alert handle
+  {
+    lcd.setCursor(0,0);
+    lcd.print("     ALERT!                ");
+    lcd.setCursor(0,1);
+    if(lowTempAlert)
+      lcd.print("  TEMP TOO LOW     ");
+    else if(highTempAlert)
+      lcd.print(" TEMP TOO HIGH     ");
+    tone(1, 440, 100);
+    delay(100);
+  }
+
+  else if(alarmAlert)
+  {
+    lcd.setCursor(0,0);
+    lcd.print("     ALERT!                ");
+    lcd.setCursor(0,1);
+    lcd.print("   It's ");
+    if(t.hour() < 10)
+      lcd.print("0");
+    lcd.print(t.hour());
+    lcd.print(":");
+    if(t.minute() < 10)
+      lcd.print("0");
+    lcd.print(t.minute());
+    lcd.print("                 ");
+    tone(1, 440, 100);
+    delay(100);
+      
+  }
 
   else
   {
@@ -256,7 +292,6 @@ void loop()
       lcd.setCursor(0,0);
       lcd.print("Temperature:   ^");
       lcd.setCursor(0,1);
-      int temp = (frame[0] - 48)*10 + (frame[1] - 48);
       if(temp < 10)
         lcd.print(" ");
       lcd.print(temp);
@@ -270,7 +305,6 @@ void loop()
       lcd.setCursor(0,0);
       lcd.println("Humidity:      ^");
       lcd.setCursor(0,1);
-      int hum = (frame[2] - 48)*10 + (frame[3] - 48);
       if(hum < 10)
         lcd.print(" ");
       lcd.print(hum);
@@ -369,7 +403,7 @@ void loop()
         EEPROM.write(alarmsNum, 255);
 
         EEPROM.write(alarmsCount, tempH);
-        EEPROM.write(AlarmsCount + 1, tempM);
+        EEPROM.write(alarmsCount + 1, tempM);
 
         alarmsNum -= 2;
         canDeleteAlarm = false;
