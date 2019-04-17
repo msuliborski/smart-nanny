@@ -106,8 +106,8 @@ void loop() {
 
     DateTime t = rtc.now();
 
-    for (int i = 0; i <= alarmsNum; i += 2) {
-        if (t.hour() == EEPROM.read(i) && t.minute() == EEPROM.read(i + 1)) {
+    for (int i = 0; i < alarmsNum; i += 2) {
+        if (t.hour() == EEPROM.read(i) && t.minute() == EEPROM.read(i + 1) && t.second() == 0) {
             alarmAlert = true;
         }
     }
@@ -356,13 +356,16 @@ void loop() {
                 lcd.print("v");
 
                 if (canDeleteAlarm) {
-                    int tempH = EEPROM.read(alarmsNum - 1);
-                    int tempM = EEPROM.read(alarmsNum);
+                    int tempH = EEPROM.read(alarmsNum - 2);
+                    int tempM = EEPROM.read(alarmsNum - 1);
+                    EEPROM.write(alarmsNum - 2, 255);
                     EEPROM.write(alarmsNum - 1, 255);
-                    EEPROM.write(alarmsNum, 255);
 
-                    EEPROM.write(alarmsCount, tempH);
-                    EEPROM.write(alarmsCount + 1, tempM);
+                    if (alarmsNum > 2)
+                    {
+                      EEPROM.write(alarmsCount, tempH);
+                      EEPROM.write(alarmsCount + 1, tempM);
+                    }
 
                     alarmsNum -= 2;
                     canDeleteAlarm = false;
