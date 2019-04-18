@@ -68,7 +68,9 @@ void setup() {
     radio.begin();
     radio.openReadingPipe(0, address);
     radio.startListening();
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//    if (! rtc.isrunning()) {
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//    }
 
     lcd.begin(16, 2);
     lcd.setCursor(0, 0);
@@ -214,7 +216,7 @@ void loop() {
     }
 
     
-    if(milisecondsFromLastPacket >= 5.0)    //device not connected
+    if(milisecondsFromLastPacket >= 8.0)    //device not connected
     {
       lcd.setCursor(0,0);
       lcd.print("     ALERT!                ");
